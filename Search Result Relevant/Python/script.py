@@ -2,11 +2,14 @@ import nltk
 import numpy as np
 import pandas as pd
 import re
+import unicodedata
 from sklearn.base import BaseEstimator
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.pipeline import Pipeline
 from sklearn.ensemble import RandomForestClassifier
 from nltk.corpus import stopwords
+from text_processing import text_normalization_and_tokenization
+from text_processing import replace_special_char
 
 train = pd.read_csv("../data/train.csv").fillna("")
 test  = pd.read_csv("../data/test.csv").fillna("")
@@ -68,13 +71,24 @@ features = FeatureMapper([('QueryBagOfWords',          'query',                 
                           ('QueryTokensInTitle',       'query_tokens_in_title',       SimpleTransform()),
                           ('QueryTokensInDescription', 'query_tokens_in_description', SimpleTransform())])
 
+
+trans_table = ''.join( [chr(i) for i in range(128)] + [' '] * 128 )
+
+def remove_specials_chars(input_str):
+    return input_str.translate( trans_table )
+
+def preprocessing(string):
+    import re
+    html_balise = re.compile(r'</?\w+>')
+    return html_balise.sub("",string)
+
 def extract_features(data):
     token_pattern = re.compile(r"(?u)\b\w\w+\b")
     data["query_tokens_in_title"] = 0.0
     data["query_tokens_in_description"] = 0.0
     for i, row in data.iterrows():
-        query = set(x.lower() for x in token_pattern.findall(row["query"]))
-        title = set(x.lower() for x in token_pattern.findall(row["product_title"]))
+        query = set(remove_specials_chars(x.lower()) for x in token_pattern.findall(row["query"]))
+        title = set(remove_specials_chars(x.lower()) for x in token_pattern.findall(row["product_title"]))
         description = set(x.lower() for x in token_pattern.findall(row["product_description"]))
         if len(title) > 0:
             data.set_value(i, "query_tokens_in_title", len(query.intersection(title))*1./len(title))
@@ -90,7 +104,15 @@ pipeline = Pipeline([("extract_features", features),
                                                          min_samples_split=2,
                                                          random_state=1))])
 
+train.product_description = train.product_description.apply(preprocessing)
+train.product_description = train.product_description.apply(remove_specials_chars)
+
 pipeline.fit(train, train["median_relevance"])
+
+test.product_description = test.product_description.apply(preprocessing)
+test.product_description = test.product_description.apply(remove_specials_chars)
+
+
 
 predictions = pipeline.predict(test)
 

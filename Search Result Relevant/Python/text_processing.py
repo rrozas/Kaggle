@@ -1,3 +1,6 @@
+from char_processing import replace_special_char
+from char_processing import strip_accents
+
 
 def text_normalization_and_tokenization( text , joinTokens=False , specialChars=None ):
     if specialChars is None:

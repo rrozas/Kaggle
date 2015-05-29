@@ -49,7 +49,10 @@ def text_normalization_and_tokenization( text , joinTokens=False , specialChars=
             else :
                 tokens_append( text[start:i] )
     if flagToken:
-        tokens_append( text[start:i+1] )
+        if not flagAlpha:
+            tokens_append( "<NUM>" )
+        else :
+            tokens_append( text[start:i+1] )
     if joinTokens:
         return ' '.join( tokens )
     else:
